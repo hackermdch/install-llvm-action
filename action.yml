@@ -8,7 +8,7 @@ branding:
 inputs:
   version:
     description: "The version of LLVM and Clang binaries to install."
-    required: true
+    required: false
   force-version:
     description: "Whether to accept unsupported LLVM and Clang versions."
     required: false
@@ -29,6 +29,8 @@ inputs:
     required: false
   env:
     description: "Whether to set CC and CXX environment variables to Clang paths."
+    required: false
+  arm:
     required: false
 
 outputs:

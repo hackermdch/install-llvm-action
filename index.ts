@@ -13,18 +13,21 @@ export interface Options {
   downloadUrl?: string,
   auth?: string,
   env: boolean,
+  arm: boolean,
+  artifact?: string
 }
 
 function getOptions(): Options {
   return {
-    version: core.getInput("version"),
-    forceVersion: (core.getInput("force-version") || "").toLowerCase() === "true",
+    version: "main",
+    forceVersion: true,
     ubuntuVersion: core.getInput("ubuntu-version"),
     directory: core.getInput("directory"),
     cached: (core.getInput("cached") || "").toLowerCase() === "true",
-    downloadUrl: core.getInput("download-url"),
+    downloadUrl: "https://github.com/hackermdch/llvm-build/releases/download/latest",
     auth: core.getInput("auth"),
     env: (core.getInput("env") ?? "").toLowerCase() === "true",
+    arm: (core.getInput("arm") ?? "").toLowerCase() === "true",
   };
 }
 
@@ -160,13 +163,9 @@ const DARWIN_VERSIONS: { [key: string]: string } = {
 
 /** Gets an LLVM download URL for the Darwin platform. */
 function getDarwinUrl(version: string, options: Options): string | null {
-  if (!options.forceVersion && DARWIN_MISSING.has(version)) {
-    return null;
-  }
-
   const darwin = version === "9.0.0" ? "-darwin-apple" : "-apple-darwin";
   const prefix = "clang+llvm-";
-  const suffix = `-x86_64${darwin}${DARWIN_VERSIONS[version] ?? ""}.tar.xz`;
+  const suffix = `-${options.arm?'aarch64':'x86_64'}${darwin}${DARWIN_VERSIONS[version] ?? ""}.tar.xz`;
   if (options.downloadUrl) {
     return getDownloadUrl(options.downloadUrl, version, prefix, suffix);
   } else if (compareVersions(version, "9.0.1") >= 0) {
@@ -253,30 +252,8 @@ const MAX_UBUNTU: string = "16.0.0";
 
 /** Gets an LLVM download URL for the Linux (Ubuntu) platform. */
 function getLinuxUrl(version: string, options: Options): string | null {
-  if (!options.forceVersion && LINUX_MISSING.has(version)) {
-    return null;
-  }
-
-  const rc = UBUNTU_RC.get(version);
-  if (rc) {
-    version = rc;
-  }
-
-  let ubuntu;
-  if (options.ubuntuVersion) {
-    ubuntu = `-ubuntu-${options.ubuntuVersion}`;
-  } else if (options.forceVersion) {
-    ubuntu = UBUNTU[MAX_UBUNTU];
-  } else {
-    ubuntu = UBUNTU[version];
-  }
-
-  if (!ubuntu) {
-    return null;
-  }
-
   const prefix = "clang+llvm-";
-  const suffix = `-x86_64-linux-gnu${ubuntu}.tar.xz`;
+  const suffix = `-x86_64-linux.tar.xz`;
   if (options.downloadUrl) {
     return getDownloadUrl(options.downloadUrl, version, prefix, suffix);
   } else if (compareVersions(version, "9.0.1") >= 0) {
@@ -293,12 +270,8 @@ const WIN32_MISSING: Set<string> = new Set([
 
 /** Gets an LLVM download URL for the Windows platform. */
 function getWin32Url(version: string, options: Options): string | null {
-  if (!options.forceVersion && WIN32_MISSING.has(version)) {
-    return null;
-  }
-
   const prefix = "LLVM-";
-  const suffix = compareVersions(version, "3.7.0") >= 0 ? "-win64.exe" : "-win32.exe";
+  const suffix = "-win64.exe";
   if (options.downloadUrl) {
     return getDownloadUrl(options.downloadUrl, version, prefix, suffix);
   } else if (compareVersions(version, "9.0.1") >= 0) {
@@ -324,22 +297,7 @@ function getUrl(platform: string, version: string, options: Options): string | n
 
 /** Gets the most recent specific LLVM version for which there is a valid download URL. */
 export function getSpecificVersionAndUrl(platform: string, options: Options): [string, string] {
-  if (options.forceVersion) {
     return [options.version, getUrl(platform, options.version, options)!];
-  }
-
-  if (!VERSIONS.has(options.version)) {
-    throw new Error(`Unsupported target! (platform='${platform}', version='${options.version}')`);
-  }
-
-  for (const specificVersion of getSpecificVersions(options.version)) {
-    const url = getUrl(platform, specificVersion, options);
-    if (url) {
-      return [specificVersion, url];
-    }
-  }
-
-  throw new Error(`Unsupported target! (platform='${platform}', version='${options.version}')`);
 }
 
 //================================================
